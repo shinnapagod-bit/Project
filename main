@@ -1,0 +1,387 @@
+--// DUGO MENU: BIG HEAD, BIG FEET, ESP (NAME/USERNAME) & SAVE/RESET
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- File Configuration para sa Save System
+local saveFileName = "DugoMenu_Settings.json"
+
+-- Default Settings & States
+local settingsData = {
+    bigHeadScale = 1.8,
+    bigFeetScale = 1.5
+}
+
+-- Load saved settings kung meron man
+if pcall(function() return readfile(saveFileName) end) then
+    local success, decoded = pcall(function()
+        return HttpService:JSONDecode(readfile(saveFileName))
+    end)
+    if success and type(decoded) == "table" then
+        for k, v in pairs(decoded) do
+            settingsData[k] = v
+        end
+    end
+end
+
+local function saveSettings()
+    pcall(function()
+        writefile(saveFileName, HttpService:JSONEncode(settingsData))
+    end)
+end
+
+local function resetSettings()
+    settingsData = {
+        bigHeadScale = 1.8,
+        bigFeetScale = 1.5
+    }
+    pcall(function()
+        if isfile(saveFileName) then
+            delfile(saveFileName)
+        end
+    end)
+end
+
+local bigHeadEnabled = false
+local bigFeetEnabled = false
+local espEnabled = false
+
+-- Original size tracking
+local originalHeadSizes = {}
+local originalMeshScales = {}
+local espDrawings = {}
+
+-- GUI Construction
+if CoreGui:FindFirstChild("MenuGUI") then
+    CoreGui.MenuGUI:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui", CoreGui)
+screenGui.Name = "MenuGUI"
+
+-- Main Menu Frame
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 320, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BorderSizePixel = 0
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Color = Color3.fromRGB(255, 255, 255)
+mainStroke.Thickness = 1.5
+
+-- Top Bar
+local topBar = Instance.new("Frame", mainFrame)
+topBar.Size = UDim2.new(1, 0, 0, 35)
+topBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+topBar.BorderSizePixel = 0
+Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 8)
+
+local titleLabel = Instance.new("TextLabel", topBar)
+titleLabel.Size = UDim2.new(1, -40, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "DUGO MENU ('L' TO HIDE)"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 12
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Exit Button
+local exitBtn = Instance.new("TextButton", topBar)
+exitBtn.Size = UDim2.new(0, 25, 0, 25)
+exitBtn.Position = UDim2.new(1, -30, 0.5, -12)
+exitBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+exitBtn.Text = "X"
+exitBtn.TextColor3 = Color3.new(1, 1, 1)
+exitBtn.Font = Enum.Font.GothamBold
+exitBtn.TextSize = 12
+Instance.new("UICorner", exitBtn).CornerRadius = UDim.new(0, 4)
+
+exitBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- Draggable Logic
+local dragging, dragInput, dragStart, startPos
+topBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        local delta = dragInput.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Container
+local container = Instance.new("ScrollingFrame", mainFrame)
+container.Size = UDim2.new(1, -20, 1, -95)
+container.Position = UDim2.new(0, 10, 0, 42)
+container.BackgroundTransparency = 1
+container.CanvasSize = UDim2.new(0, 0, 0, 280)
+container.ScrollBarThickness = 3
+Instance.new("UIListLayout", container).Padding = UDim.new(0, 8)
+
+-- Helper Functions para sa UI
+local function createToggle(name, default, callback)
+    local btn = Instance.new("TextButton", container)
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btn.TextColor3 = default and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.Text = name .. ": " .. (default and "ON" or "OFF")
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local state = default
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.TextColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        btn.Text = name .. ": " .. (state and "ON" or "OFF")
+        callback(state)
+    end)
+    return btn
+end
+
+local function createAdjuster(name, valKey, min, max, step)
+    local lbl = Instance.new("TextLabel", container)
+    lbl.Size = UDim2.new(1, 0, 0, 40)
+    lbl.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    lbl.TextColor3 = Color3.new(1, 1, 1)
+    lbl.Font = Enum.Font.GothamMedium
+    lbl.TextSize = 11
+    lbl.Text = "  " .. name .. ": " .. string.format("%.1f", settingsData[valKey])
+    Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 6)
+    
+    local minus = Instance.new("TextButton", lbl)
+    minus.Size = UDim2.new(0, 30, 0, 25)
+    minus.Position = UDim2.new(1, -70, 0.5, -12.5)
+    minus.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    minus.Text = "-"
+    minus.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", minus).CornerRadius = UDim.new(0, 4)
+    
+    local plus = Instance.new("TextButton", lbl)
+    plus.Size = UDim2.new(0, 30, 0, 25)
+    plus.Position = UDim2.new(1, -35, 0.5, -12.5)
+    plus.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    plus.Text = "+"
+    plus.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", plus).CornerRadius = UDim.new(0, 4)
+    
+    minus.MouseButton1Click:Connect(function()
+        if settingsData[valKey] > min then
+            settingsData[valKey] = math.clamp(settingsData[valKey] - step, min, max)
+            lbl.Text = "  " .. name .. ": " .. string.format("%.1f", settingsData[valKey])
+        end
+    end)
+    
+    plus.MouseButton1Click:Connect(function()
+        if settingsData[valKey] < max then
+            settingsData[valKey] = math.clamp(settingsData[valKey] + step, min, max)
+            lbl.Text = "  " .. name .. ": " .. string.format("%.1f", settingsData[valKey])
+        end
+    end)
+end
+
+-- Controls
+createToggle("ESP NAMES", espEnabled, function(state)
+    espEnabled = state
+    if not state then
+        for _, gui in pairs(espDrawings) do
+            if gui then gui:Destroy() end
+        end
+        espDrawings = {}
+    end
+end)
+
+createToggle("BIG HEAD", bigHeadEnabled, function(state)
+    bigHeadEnabled = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head and originalHeadSizes[p] then
+                    head.Size = originalHeadSizes[p]
+                    local mesh = head:FindFirstChildOfClass("SpecialMesh")
+                    if mesh and originalMeshScales[p] then
+                        mesh.Scale = originalMeshScales[p]
+                    end
+                end
+            end
+        end
+        originalHeadSizes = {}
+        originalMeshScales = {}
+    end
+end)
+createAdjuster("BIG HEAD SIZE", "bigHeadScale", 1, 3, 0.2)
+
+createToggle("BIG FEET", bigFeetEnabled, function(state)
+    bigFeetEnabled = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local leftFoot = p.Character:FindFirstChild("LeftFoot") or p.Character:FindFirstChild("Left Leg")
+                local rightFoot = p.Character:FindFirstChild("RightFoot") or p.Character:FindFirstChild("Right Leg")
+                if leftFoot then leftFoot.Size = Vector3.new(1, 2, 1) end
+                if rightFoot then rightFoot.Size = Vector3.new(1, 2, 1) end
+            end
+        end
+    end
+end)
+createAdjuster("BIG FEET SIZE", "bigFeetScale", 1, 3, 0.2)
+
+-- Bottom Action Buttons (Save & Reset)
+local buttonContainer = Instance.new("Frame", mainFrame)
+buttonContainer.Size = UDim2.new(1, -20, 0, 40)
+buttonContainer.Position = UDim2.new(0, 10, 1, -48)
+buttonContainer.BackgroundTransparency = 1
+
+local saveBtn = Instance.new("TextButton", buttonContainer)
+saveBtn.Size = UDim2.new(0.48, 0, 1, 0)
+saveBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 40)
+saveBtn.Text = "SAVE SETTINGS"
+saveBtn.TextColor3 = Color3.new(1, 1, 1)
+saveBtn.Font = Enum.Font.GothamBold
+saveBtn.TextSize = 11
+Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 6)
+
+saveBtn.MouseButton1Click:Connect(function()
+    saveSettings()
+    saveBtn.Text = "SAVED!"
+    task.wait(1)
+    saveBtn.Text = "SAVE SETTINGS"
+end)
+
+local resetBtn = Instance.new("TextButton", buttonContainer)
+resetBtn.Size = UDim2.new(0.48, 0, 1, 0)
+resetBtn.Position = UDim2.new(0.52, 0, 0, 0)
+resetBtn.BackgroundColor3 = Color3.fromRGB(140, 40, 40)
+resetBtn.Text = "RESET DEFAULT"
+resetBtn.TextColor3 = Color3.new(1, 1, 1)
+resetBtn.Font = Enum.Font.GothamBold
+resetBtn.TextSize = 11
+Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
+
+resetBtn.MouseButton1Click:Connect(function()
+    resetSettings()
+    resetBtn.Text = "RESET!"
+    task.wait(1)
+    resetBtn.Text = "RESET DEFAULT"
+end)
+
+-- Hotkey para itago/ipakita ang menu ('L')
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.L then
+        mainFrame.Visible = not mainFrame.Visible
+    end
+end)
+
+-- Main Loop (Big Head, Big Feet, & ESP)
+RunService.RenderStepped:Connect(function()
+    -- 1. Big Head & Big Feet Logic
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local char = p.Character
+            local head = char:FindFirstChild("Head")
+            
+            if head then
+                if bigHeadEnabled then
+                    if not originalHeadSizes[p] then
+                        originalHeadSizes[p] = head.Size
+                        local mesh = head:FindFirstChildOfClass("SpecialMesh")
+                        if mesh then
+                            originalMeshScales[p] = mesh.Scale
+                        else
+                            originalMeshScales[p] = Vector3.new(1, 1, 1)
+                        end
+                    end
+
+                    local base = originalHeadSizes[p]
+                    head.Size = base * settingsData.bigHeadScale
+                    local mesh = head:FindFirstChildOfClass("SpecialMesh")
+                    if mesh and originalMeshScales[p] then
+                        mesh.Scale = originalMeshScales[p] * settingsData.bigHeadScale
+                    end
+                end
+            end
+            
+            local leftFoot = char:FindFirstChild("LeftFoot") or char:FindFirstChild("Left Leg")
+            local rightFoot = char:FindFirstChild("RightFoot") or char:FindFirstChild("Right Leg")
+            if bigFeetEnabled then
+                if leftFoot then leftFoot.Size = Vector3.new(1 * settingsData.bigFeetScale, 2 * settingsData.bigFeetScale, 1 * settingsData.bigFeetScale) end
+                if rightFoot then rightFoot.Size = Vector3.new(1 * settingsData.bigFeetScale, 2 * settingsData.bigFeetScale, 1 * settingsData.bigFeetScale) end
+            end
+        end
+    end
+
+    -- 2. ESP Names (Display Name & Username) Logic
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            if espEnabled and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                local head = p.Character.Head
+                local _, onScreen = Camera:WorldToViewportPoint(head.Position)
+                
+                if onScreen then
+                    if not espDrawings[p] then
+                        local bill = Instance.new("BillboardGui", screenGui)
+                        bill.Name = "ESP_" .. p.Name
+                        bill.Size = UDim2.new(0, 200, 0, 50)
+                        bill.StudsOffset = Vector3.new(0, 2.5, 0)
+                        bill.AlwaysOnTop = true
+                        
+                        local txt = Instance.new("TextLabel", bill)
+                        txt.Name = "NameTag"
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        txt.TextStrokeTransparency = 0.5
+                        txt.Font = Enum.Font.GothamBold
+                        txt.TextSize = 12
+                        
+                        espDrawings[p] = bill
+                    end
+                    
+                    local bill = espDrawings[p]
+                    if bill and bill:FindFirstChild("NameTag") then
+                        bill.Adornee = head
+                        -- Format: DisplayName (@Username)
+                        bill.NameTag.Text = p.DisplayName .. " (@" .. p.Name .. ")"
+                    end
+                else
+                    if espDrawings[p] then
+                        espDrawings[p].Adornee = nil
+                    end
+                end
+            else
+                if espDrawings[p] then
+                    espDrawings[p]:Destroy()
+                    espDrawings[p] = nil
+                end
+            end
+        end
+    end
+end)
