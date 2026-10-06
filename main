@@ -1,4 +1,4 @@
---// DUGO MENU: BIG HEAD, BIG FEET, ESP (NAME/USERNAME) & SAVE/RESET
+--// INAGAWA MENU: BIG HEAD, BIG FEET, ESP (NAME/USERNAME) & SAVE/RESET
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -61,7 +61,7 @@ if CoreGui:FindFirstChild("MenuGUI") then
 end
 
 local screenGui = Instance.new("ScreenGui", CoreGui)
-screenGui.Name = "MenuGUI"
+screenGui.Name = "INAGAWA MenuGUI"
 
 -- Main Menu Frame
 local mainFrame = Instance.new("Frame", screenGui)
