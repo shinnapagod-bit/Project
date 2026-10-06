@@ -8,7 +8,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- File Configuration para sa Save System
-local saveFileName = "DugoMenu_Settings.json"
+local saveFileName = "INAGAWAMenu_Settings.json"
 
 -- Default Settings & States
 local settingsData = {
@@ -56,7 +56,7 @@ local originalMeshScales = {}
 local espDrawings = {}
 
 -- GUI Construction
-if CoreGui:FindFirstChild("MenuGUI") then
+if CoreGui:FindFirstChild("INAGAWAMenuGUI") then
     CoreGui.MenuGUI:Destroy()
 end
 
@@ -85,7 +85,7 @@ local titleLabel = Instance.new("TextLabel", topBar)
 titleLabel.Size = UDim2.new(1, -40, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "DUGO MENU ('L' TO HIDE)"
+titleLabel.Text = "INAGAWA MENU ('L' TO HIDE)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 12
