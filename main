@@ -1,4 +1,4 @@
---// INAGAWA MENU: BIG HEAD, BIG FEET, ESP (NAME/USERNAME) & SAVE/RESET
+--// MENU: BIG HEAD, BIG FEET, ESP (NAME/USERNAME) & SAVE/RESET
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -56,7 +56,7 @@ local originalMeshScales = {}
 local espDrawings = {}
 
 -- GUI Construction
-if CoreGui:FindFirstChild("INAGAWAMenuGUI") then
+if CoreGui:FindFirstChild("MenuGUI") then
     CoreGui.MenuGUI:Destroy()
 end
 
